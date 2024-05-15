@@ -1,0 +1,17 @@
+[
+  {
+    "cacheName":"PRODUCT_SNAPSHOT",
+    "path":"/Data/Product/product.json",
+    "fileSystem":"LOCAL/HDFS"
+  },
+  {
+    "cacheName":"CAST_SNAPSHOT",
+    "path":"/Data/Cast/cast.json",
+    "fileSystem":"LOCAL/HDFS"
+  },
+  {
+    "cacheName":"LANGUAGE_SNAPSHOT",
+    "path":"/Data/Language/language.json",
+    "fileSystem":"LOCAL/HDFS"
+  }
+]
