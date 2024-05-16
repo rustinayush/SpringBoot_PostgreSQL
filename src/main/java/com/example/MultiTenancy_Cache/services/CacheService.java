@@ -8,17 +8,17 @@ import java.util.Map;
 
 public interface CacheService {
 
-    Page<Map<String, Object>> getAllData(String cacheName, Pageable pageable) throws IOException;
+    Page<Map<String, Object>> getAllData(String orgid, String cacheName, Pageable pageable) throws IOException;
 
-    Map<String, Object> getDataById(String cacheName, String id) throws IOException;
+    Map<String, Object> getDataById(String orgid, String cacheName, String id) throws IOException;
 
-    Map<String, Object> createData(String cacheName, Map<String, Object> data) throws IOException;
+    Map<String, Object> createData(String orgid, String cacheName, Map<String, Object> data) throws IOException;
 
-    Map<String, Object> updateData(String cacheName, Map<String, Object> data, String id) throws IOException;
+    Map<String, Object> updateData(String orgid, String cacheName, Map<String, Object> data, String id) throws IOException;
 
-    void deleteValue(String cacheName, String id) throws IOException;
+    void deleteValue(String orgid, String cacheName, String id) throws IOException;
 
-    Page<Map<String, Object>> filterData(String cacheName, Map<String, String> searchAttributes) throws IOException;
+    Page<Map<String, Object>> filterData(String orgid, String cacheName, Map<String, String> searchAttributes) throws IOException;
 
-    Page<Map<String, Object>> searchData(String cacheName, Map<String, String> searchAttributes) throws IOException;
+    Page<Map<String, Object>> searchData(String orgid, String cacheName, Map<String, String> searchAttributes) throws IOException;
 }

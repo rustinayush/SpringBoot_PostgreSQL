@@ -31,9 +31,9 @@ public class CacheServiceImpl implements CacheService {
         this.objectMapper = objectMapper;
     }
 
-    private List<Map<String, Object>> loadDataFromJson(String cacheName) throws IOException {
+    private List<Map<String, Object>> loadDataFromJson(String orgid , String cacheName) throws IOException {
 
-        String path = getPathFromCacheConfig(cacheName);
+        String path = getPathFromCacheConfig(orgid, cacheName);
         System.out.println("Path: " + path);
 
         // Read the JSON data from the file path
@@ -41,17 +41,21 @@ public class CacheServiceImpl implements CacheService {
         );
         return data;
     }
-    private String getPathFromCacheConfig(String cacheName) {
+    private String getPathFromCacheConfig(String orgid , String cacheName) {
         return cacheConfig.getEntries().stream()
-                .filter(entry -> entry.getCacheName().equals(cacheName))
+                .filter(entry -> {
+                    String entryOrgId = entry.getOrgId();
+
+                    return entryOrgId != null && entryOrgId.equals(orgid) && entry.getCacheName().equals(cacheName);
+                })
                 .findFirst()
                 .map(entry -> entry.getPath())
                 .orElseThrow(() -> new IllegalArgumentException("Cache name not found: " + cacheName));
     }
 
-    private void writeDataToJson(String cacheName, List<Map<String, Object>> data) throws IOException {
+    private void writeDataToJson(String orgid, String cacheName, List<Map<String, Object>> data) throws IOException {
         // Define the file path for the JSON file based on the cache name
-        String filePath = getPathFromCacheConfig(cacheName);
+        String filePath = getPathFromCacheConfig(orgid, cacheName);
 
         // Write the updated data to the JSON file
         objectMapper.writeValue(new File(filePath), data);
@@ -74,8 +78,8 @@ public class CacheServiceImpl implements CacheService {
 
     // Get the sublist based on adjusted start and end indices
     @Override
-    public Page<Map<String, Object>> getAllData(String cacheName, Pageable pageable) throws IOException {
-        List<Map<String, Object>> dataList = loadDataFromJson(cacheName);
+    public Page<Map<String, Object>> getAllData(String orgid, String cacheName, Pageable pageable) throws IOException {
+        List<Map<String, Object>> dataList = loadDataFromJson(orgid, cacheName);
 
         // Apply sorting if specified
         if (pageable.getSort().isSorted()) {
@@ -144,34 +148,51 @@ public class CacheServiceImpl implements CacheService {
                     return order.equalsIgnoreCase("asc") ? -1 : 1; // null is considered lesser in descending order
                 }
 
-                // Parse the id field as integer
-                int id1 = Integer.parseInt(value1.toString());
-                int id2 = Integer.parseInt(value2.toString());
+                // Check if the field is numeric
+                boolean isNumeric = isNumeric(value1) && isNumeric(value2);
 
-                // Compare the ids
-                int result = Integer.compare(id1, id2);
-                return order.equalsIgnoreCase("asc") ? result : -result;
-            } catch (NumberFormatException e) {
-                // Handle parsing errors
-                e.printStackTrace();
-                throw new IllegalArgumentException("Field is not a number: " + fieldName);
+                if (isNumeric) {
+                    // Compare numeric values
+                    Double numericValue1 = Double.parseDouble(value1.toString());
+                    Double numericValue2 = Double.parseDouble(value2.toString());
+                    int result = numericValue1.compareTo(numericValue2);
+                    return order.equalsIgnoreCase("asc") ? result : -result;
+                } else {
+                    // Fallback to string comparison
+                    String strValue1 = value1.toString();
+                    String strValue2 = value2.toString();
+                    int result = strValue1.compareTo(strValue2);
+                    return order.equalsIgnoreCase("asc") ? result : -result;
+                }
             } catch (Exception e) {
-                // Handle other errors
+                // Handle errors
                 e.printStackTrace();
-                throw new RuntimeException("Error accessing field: " + fieldName, e);
+                throw new RuntimeException("Error accessing or comparing field: " + fieldName, e);
             }
         };
 
         return comparator;
     }
 
+    private static boolean isNumeric(Object value) {
+        if (value instanceof Number) {
+            return true;
+        }
+        if (value instanceof String) {
+            String str = (String) value;
+            return str.matches("-?\\d+(\\.\\d+)?");
+        }
+        return false;
+    }
+
+
 
 
 
 
     @Override
-    public Map<String, Object> getDataById(String cacheName, String id) throws IOException {
-       List<Map<String, Object>> data= loadDataFromJson(cacheName);
+    public Map<String, Object> getDataById(String orgid, String cacheName, String id) throws IOException {
+       List<Map<String, Object>> data= loadDataFromJson(orgid,cacheName);
         for(Map<String, Object> entity : data){
             String EntityId=String.valueOf(entity.get("id"));
             if(EntityId.equals(id)){
@@ -182,9 +203,9 @@ public class CacheServiceImpl implements CacheService {
     }
 
     @Override
-    public Map<String, Object> createData(String cacheName, Map<String, Object> newData) throws IOException {
+    public Map<String, Object> createData(String orgid, String cacheName, Map<String, Object> newData) throws IOException {
         // Load existing data
-        List<Map<String, Object>> allList = loadDataFromJson(cacheName);
+        List<Map<String, Object>> allList = loadDataFromJson(orgid,cacheName);
 
         // Generate a new ID based on the existing IDs in the list
         String newId = generateNewId(allList);
@@ -196,7 +217,7 @@ public class CacheServiceImpl implements CacheService {
         allList.add(newData);
 
         // Write the updated list back to the JSON file
-        writeDataToJson(cacheName, allList);
+        writeDataToJson(orgid,cacheName, allList);
 
         // Return the newly created data
         return newData;
@@ -205,9 +226,9 @@ public class CacheServiceImpl implements CacheService {
 
 
     @Override
-    public Map<String,Object> updateData(String cacheName, Map<String, Object> newData, String id) throws IOException {
+    public Map<String,Object> updateData(String orgid, String cacheName, Map<String, Object> newData, String id) throws IOException {
         // Load existing data
-        List<Map<String, Object>> allList = loadDataFromJson(cacheName);
+        List<Map<String, Object>> allList = loadDataFromJson(orgid,cacheName);
 
         // Find the item with the specified ID
         Optional<Map<String, Object>> optionalItem = allList.stream()
@@ -220,7 +241,7 @@ public class CacheServiceImpl implements CacheService {
             existingItem.putAll(newData);
 
             // Write the updated list back to the JSON file
-            writeDataToJson(cacheName, allList);
+            writeDataToJson(orgid, cacheName, allList);
 
             // Return the updated item
             return existingItem;
@@ -231,22 +252,22 @@ public class CacheServiceImpl implements CacheService {
     }
 
     @Override
-    public void deleteValue(String cacheName, String id) throws IOException {
+    public void deleteValue(String orgid, String cacheName, String id) throws IOException {
         // Load existing data
-        List<Map<String, Object>> allList = loadDataFromJson(cacheName);
+        List<Map<String, Object>> allList = loadDataFromJson(orgid,cacheName);
 
         // Remove the item with the specified ID
         allList.removeIf(item -> Objects.equals(item.get("id"), id));
 
         // Write the updated list back to the JSON file
-        writeDataToJson(cacheName, allList);
+        writeDataToJson(orgid, cacheName, allList);
     }
 
 
 
     @Override
-    public Page<Map<String, Object>> filterData(String cacheName, Map<String, String> searchAttributes) throws IOException {
-        List<Map<String, Object>> dataList = loadDataFromJson(cacheName);
+    public Page<Map<String, Object>> filterData(String orgid, String cacheName, Map<String, String> searchAttributes) throws IOException {
+        List<Map<String, Object>> dataList = loadDataFromJson(orgid,cacheName);
         List<Map<String, Object>> result = new ArrayList<>();
 
         try {
@@ -279,8 +300,8 @@ public class CacheServiceImpl implements CacheService {
     }
 
     @Override
-    public Page<Map<String, Object>> searchData(String cacheName, Map<String, String> searchAttributes) throws IOException {
-        List<Map<String, Object>> dataList = loadDataFromJson(cacheName);
+    public Page<Map<String, Object>> searchData(String orgid, String cacheName, Map<String, String> searchAttributes) throws IOException {
+        List<Map<String, Object>> dataList = loadDataFromJson(orgid,cacheName);
         List<Map<String, Object>> result = new ArrayList<>();
 
         try {

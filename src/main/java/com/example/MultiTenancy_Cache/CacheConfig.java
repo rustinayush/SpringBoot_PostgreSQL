@@ -27,20 +27,18 @@ public class CacheConfig {
 
         List<SchedulerCache> all = cacheRepository.findAll();
         all.forEach(schedulerCache -> {
-            addCacheEntry(schedulerCache.getCacheName(), schedulerCache.getPath(), schedulerCache.getFileSystem());
+            addCacheEntry( schedulerCache.getCacheName(), schedulerCache.getPath(), schedulerCache.getFileSystem(), schedulerCache.getOrgId());
         });
 
-        // Create and add CacheEntry objects with hardcoded values
-//        addCacheEntry("PRODUCT_SNAPSHOT", "src/main/java/com/example/MultiTenancy_Cache/Data/Product/product.json", "LOCAL");
-//        addCacheEntry("CAST_SNAPSHOT", "src/main/java/com/example/MultiTenancy_Cache/Data/Cast/cast.json", "LOCAL/HDFS");
-//        addCacheEntry("LANGUAGE_SNAPSHOT", "src/main/java/com/example/MultiTenancy_Cache/Data/Language/language.json", "LOCAL/HDFS");
+
     }
 
-    private void addCacheEntry(String cacheName, String path, String fileSystem) {
+    private void addCacheEntry(String cacheName, String path, String fileSystem , String orgId) {
         SchedulerCache cacheEntry = new SchedulerCache();
         cacheEntry.setCacheName(cacheName);
         cacheEntry.setPath(path);
         cacheEntry.setFileSystem(fileSystem);
+        cacheEntry.setOrgId(orgId);
         entries.add(cacheEntry);
         System.out.println(entries);
     }

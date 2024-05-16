@@ -36,8 +36,9 @@ public class CacheController {
     }
 
 
-    @GetMapping("/{cacheName}")
+    @GetMapping("/{orgid}/{cacheName}")
     public Page<Map<String, Object>> getAllData(
+            @PathVariable String orgid,
             @PathVariable String cacheName,
             @RequestParam(value = "pageNumber", required = false) Integer page,
             @RequestParam(value = "pageSize", required = false) Integer size,
@@ -47,15 +48,11 @@ public class CacheController {
             @RequestParam Map<String, String> filter
     ) throws IOException {
         Pageable pageable = null;
-
-        if (page != null && size != null) {
-            // Create pageable object for pagination if page and size parameters are provided
-            pageable = PageRequest.of(page, size);
-        }
+        Sort sort = null;
 
         // Step 1: Specific search (like searching by ID)
         if (!searchData.isEmpty()) {
-            Page<Map<String, Object>> specificSearchResult = cacheService.searchData(cacheName, searchData);
+            Page<Map<String, Object>> specificSearchResult = cacheService.searchData(orgid,cacheName, searchData);
             if (!specificSearchResult.isEmpty()) {
                 return specificSearchResult; // Return specific search result if found
             }
@@ -63,61 +60,54 @@ public class CacheController {
 
         // Step 2: Generic or partial searching
         if (!filter.isEmpty()) {
-            Page<Map<String, Object>> partialSearchResult = cacheService.filterData(cacheName, filter);
+            Page<Map<String, Object>> partialSearchResult = cacheService.filterData(orgid, cacheName, filter);
             if (!partialSearchResult.isEmpty()) {
                 return partialSearchResult; // Return partial search result if found
             }
         }
 
         // Step 3: Sorting
-        Sort sort = null;
         if (sortBy != null && !sortBy.isEmpty()) {
             sort = Sort.by(Sort.Direction.fromString(sortOrder), sortBy);
         }
 
         // Step 4: Pagination
-        if (pageable == null && sort != null) {
-            pageable = PageRequest.of(0, Integer.MAX_VALUE, sort); // Set default pagination if not provided
-        } else if (pageable == null) {
-            pageable = PageRequest.of(0, Integer.MAX_VALUE); // Set default pagination if not provided
+        if (page != null && size != null) {
+            if (sort != null) {
+                pageable = PageRequest.of(page, size, sort);
+            } else {
+                pageable = PageRequest.of(page, size); // Create pageable object without sorting
+            }
+        } else if (sort != null) {
+            // If only sorting is provided, default to first page with maximum size
+            pageable = PageRequest.of(0, Integer.MAX_VALUE, sort);
+        } else {
+            // If no pagination or sorting parameters are provided, return all data
+            return cacheService.getAllData(orgid, cacheName, Pageable.unpaged());
         }
 
-        // If no pagination and sorting parameters are provided, return all data
-        if (pageable.getPageNumber() == 0 && pageable.getPageSize() == Integer.MAX_VALUE && sort == null) {
-            return cacheService.getAllData(cacheName, Pageable.unpaged());
-        }
-
-        return cacheService.getAllData(cacheName, pageable);
+        return cacheService.getAllData(orgid, cacheName, pageable);
     }
 
 
-    private boolean containsGeneralParams(Map<String, String> requestParams) {
-        // Check if any of the general params are present in the requestParams map
-        return requestParams.containsKey("sortBy")
-                || requestParams.containsKey("pageSize")
-                || requestParams.containsKey("pageNumber")
-                || requestParams.containsKey("sortOrder");
+    @GetMapping("/{orgid}/{cacheName}/{id}")
+    public Map<String, Object> getDataById(@PathVariable String orgid,@PathVariable String cacheName, @PathVariable String id) throws IOException {
+        return cacheService.getDataById(orgid, cacheName,id);
     }
 
-
-    @GetMapping("/{cacheName}/{id}")
-    public Map<String, Object> getDataById(@PathVariable String cacheName, @PathVariable String id) throws IOException {
-        return cacheService.getDataById(cacheName,id);
+    @PostMapping("/{orgid}/{cacheName}")
+    public Map<String,Object> createData(@PathVariable String orgid,@PathVariable String cacheName,@RequestBody Map<String,Object>  data) throws IOException {
+          return cacheService.createData(orgid, cacheName,data);
     }
 
-    @PostMapping("/{cacheName}")
-    public Map<String,Object> createData(@PathVariable String cacheName,@RequestBody Map<String,Object>  data) throws IOException {
-          return cacheService.createData(cacheName,data);
+    @PutMapping("/{orgid}/{cacheName}/{id}")
+    public Map<String,Object> updateData(@PathVariable String orgid,@PathVariable String cacheName, @RequestBody Map<String,Object> data, @PathVariable String id) throws IOException {
+        return cacheService.updateData(orgid, cacheName, data,id);
     }
 
-    @PutMapping("/{cacheName}/{id}")
-    public Map<String,Object> updateData(@PathVariable String cacheName, @RequestBody Map<String,Object> data, @PathVariable String id) throws IOException {
-        return cacheService.updateData(cacheName, data,id);
-    }
-
-    @DeleteMapping("{cacheName}/{id}")
-    public String deleteValue(@PathVariable String cacheName, @PathVariable String id) throws IOException {
-        cacheService.deleteValue(cacheName,id);
+    @DeleteMapping("/{orgid}/{cacheName}/{id}")
+    public String deleteValue(@PathVariable String orgid,@PathVariable String cacheName, @PathVariable String id) throws IOException {
+        cacheService.deleteValue(orgid, cacheName,id);
            return "Deleted SuccessFully";
     }
 

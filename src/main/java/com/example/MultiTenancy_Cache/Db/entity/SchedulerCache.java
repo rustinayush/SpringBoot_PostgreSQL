@@ -1,8 +1,10 @@
 package com.example.MultiTenancy_Cache.Db.entity;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
+@Data
 @Table(name = "scheduler_cache")
 public class SchedulerCache {
     @Id
@@ -10,9 +12,6 @@ public class SchedulerCache {
     private Long id;
 
     private String orgId;
-    private String cacheName;
-    private String path;
-    private String fileSystem;
 
     public Long getId() {
         return id;
@@ -53,6 +52,10 @@ public class SchedulerCache {
     public void setFileSystem(String fileSystem) {
         this.fileSystem = fileSystem;
     }
+
+    private String cacheName;
+    private String path;
+    private String fileSystem;
 
 
 
