@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -37,7 +39,7 @@ public class CacheController {
 
 
     @GetMapping("/{orgid}/{cacheName}")
-    public Page<Map<String, Object>> getAllData(
+    public ResponseEntity<?> getAllData(
             @PathVariable String orgid,
             @PathVariable String cacheName,
             @RequestParam(value = "pageNumber", required = false) Integer page,
@@ -47,52 +49,65 @@ public class CacheController {
             @RequestParam Map<String, String> searchData,
             @RequestParam Map<String, String> filter
     ) throws IOException {
-        Pageable pageable = null;
-        Sort sort = null;
+        try {
+            Pageable pageable = null;
+            Sort sort = null;
 
-        // Step 1: Specific search (like searching by ID)
-        if (!searchData.isEmpty()) {
-            Page<Map<String, Object>> specificSearchResult = cacheService.searchData(orgid,cacheName, searchData);
-            if (!specificSearchResult.isEmpty()) {
-                return specificSearchResult; // Return specific search result if found
+            // Step 1: Specific search (like searching by ID)
+            if (!searchData.isEmpty()) {
+                Page<Map<String, Object>> specificSearchResult = cacheService.searchData(orgid, cacheName, searchData);
+                if (!specificSearchResult.isEmpty()) {
+                    return ResponseEntity.ok(specificSearchResult); // Return specific search result if found
+                }
             }
-        }
 
-        // Step 2: Generic or partial searching
-        if (!filter.isEmpty()) {
-            Page<Map<String, Object>> partialSearchResult = cacheService.filterData(orgid, cacheName, filter);
-            if (!partialSearchResult.isEmpty()) {
-                return partialSearchResult; // Return partial search result if found
+            // Step 2: Generic or partial searching
+            if (!filter.isEmpty()) {
+                Page<Map<String, Object>> partialSearchResult = cacheService.filterData(orgid, cacheName, filter);
+                if (!partialSearchResult.isEmpty()) {
+                    return ResponseEntity.ok(partialSearchResult); // Return partial search result if found
+                }
             }
-        }
 
-        // Step 3: Sorting
-        if (sortBy != null && !sortBy.isEmpty()) {
-            sort = Sort.by(Sort.Direction.fromString(sortOrder), sortBy);
-        }
+            // Step 3: Sorting
+            if (sortBy != null && !sortBy.isEmpty()) {
+                sort = Sort.by(Sort.Direction.fromString(sortOrder), sortBy);
+            }
 
-        // Step 4: Pagination
-        if (page != null && size != null) {
-            if (sort != null) {
-                pageable = PageRequest.of(page, size, sort);
+            // Step 4: Pagination
+            if (page != null && size != null) {
+                if (sort != null) {
+                    pageable = PageRequest.of(page, size, sort);
+                } else {
+                    pageable = PageRequest.of(page, size); // Create pageable object without sorting
+                }
+            } else if (sort != null) {
+                // If only sorting is provided, default to first page with maximum size
+                pageable = PageRequest.of(0, Integer.MAX_VALUE, sort);
             } else {
-                pageable = PageRequest.of(page, size); // Create pageable object without sorting
+                // If no pagination or sorting parameters are provided, return all data
+                return ResponseEntity.ok(cacheService.getAllData(orgid, cacheName, Pageable.unpaged()));
             }
-        } else if (sort != null) {
-            // If only sorting is provided, default to first page with maximum size
-            pageable = PageRequest.of(0, Integer.MAX_VALUE, sort);
-        } else {
-            // If no pagination or sorting parameters are provided, return all data
-            return cacheService.getAllData(orgid, cacheName, Pageable.unpaged());
-        }
 
-        return cacheService.getAllData(orgid, cacheName, pageable);
+            return ResponseEntity.ok(cacheService.getAllData(orgid, cacheName, pageable));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Cache name not found: " + cacheName);
+        }
     }
 
 
     @GetMapping("/{orgid}/{cacheName}/{id}")
-    public Map<String, Object> getDataById(@PathVariable String orgid,@PathVariable String cacheName, @PathVariable String id) throws IOException {
-        return cacheService.getDataById(orgid, cacheName,id);
+    public ResponseEntity<?> getDataById(@PathVariable String orgid, @PathVariable String cacheName, @PathVariable String id) throws IOException {
+        try {
+            Map<String, Object> data = cacheService.getDataById(orgid, cacheName, id);
+            if (data != null) {
+                return ResponseEntity.ok(data);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Data not available");
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Data not available");
+        }
     }
 
     @PostMapping("/{orgid}/{cacheName}")

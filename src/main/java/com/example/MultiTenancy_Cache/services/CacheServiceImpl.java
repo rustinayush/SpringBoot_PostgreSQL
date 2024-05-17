@@ -81,12 +81,6 @@ public class CacheServiceImpl implements CacheService {
     public Page<Map<String, Object>> getAllData(String orgid, String cacheName, Pageable pageable) throws IOException {
         List<Map<String, Object>> dataList = loadDataFromJson(orgid, cacheName);
 
-        // Apply sorting if specified
-        if (pageable.getSort().isSorted()) {
-            // Sort the entire dataset based on the specified sort criteria
-            dataList.sort(getComparatorFromSort(pageable.getSort()));
-        }
-
         // If pageable is unpaged, return all data
         if (pageable.isUnpaged()) {
             return new PageImpl<>(dataList);
@@ -110,8 +104,15 @@ public class CacheServiceImpl implements CacheService {
         // Get the sublist based on adjusted start and end indices
         List<Map<String, Object>> paginatedList = dataList.subList(start, end);
 
+        // Apply sorting if specified
+        if (pageable.getSort().isSorted()) {
+            // Sort the paginated list based on the specified sort criteria
+            paginatedList.sort(getComparatorFromSort(pageable.getSort()));
+        }
+
         return new PageImpl<>(paginatedList, pageable, dataList.size());
     }
+
 
 
 
@@ -193,6 +194,11 @@ public class CacheServiceImpl implements CacheService {
     @Override
     public Map<String, Object> getDataById(String orgid, String cacheName, String id) throws IOException {
        List<Map<String, Object>> data= loadDataFromJson(orgid,cacheName);
+        // Check if the data list is empty or if the requested ID is greater than the maximum available ID
+        if (data.isEmpty() || Integer.parseInt(id) > Integer.parseInt(data.get(data.size() - 1).get("id").toString())) {
+            // Handle the case where the requested ID is out of bounds
+            throw new IllegalArgumentException("Requested ID is out of bounds");
+        }
         for(Map<String, Object> entity : data){
             String EntityId=String.valueOf(entity.get("id"));
             if(EntityId.equals(id)){
